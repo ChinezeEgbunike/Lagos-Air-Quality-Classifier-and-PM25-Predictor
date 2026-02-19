@@ -1,0 +1,263 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Feb 17 10:44:04 2026
+
+@author: Administrator
+"""
+
+
+
+# -*- coding: utf-8 -*-
+"""
+Air Quality Prediction Lagos - Regression + Classification with Feature Selection per Fold
+"""
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from xgboost import XGBRegressor, XGBClassifier
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, classification_report, confusion_matrix
+from sklearn.feature_selection import SelectFromModel
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+df = pd.read_csv('Lagos.csv')
+df = df.pivot_table(
+    index=['location_name','datetimeLocal'],
+    columns='parameter',
+    values='value'
+).reset_index()
+
+
+def classify_pm25(pm25):
+    if pm25 <= 12:
+        return 0
+    elif pm25 <= 35.4:
+        return 1
+    elif pm25 <= 55.4:
+        return 2
+    else:
+        return 3
+
+df['air_quality'] = df['pm25'].apply(classify_pm25)
+
+
+df['datetimeLocal'] = pd.to_datetime(df['datetimeLocal'])
+df = df.sort_values('datetimeLocal')
+df = df.set_index('datetimeLocal')
+df = df.asfreq('H')
+df[['temperature', 'relativehumidity', 'pm25']] = df[['temperature', 'relativehumidity', 'pm25']].ffill()
+df['hour'] = df.index.hour
+df['day_of_week'] = df.index.dayofweek
+df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+df['dow_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
+df['dow_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
+df['pm25_1'] = df['pm25'].shift(1)
+df['pm25_2'] = df['pm25'].shift(2)
+df['pm25_3'] = df['pm25'].shift(3)
+df['pm25_6'] = df['pm25'].shift(6)
+df['pm25_12'] = df['pm25'].shift(12)
+df['pm25_24'] = df['pm25'].shift(24)
+df['pm25_diff_1'] = df['pm25_1'] - df['pm25_2']
+df['pm25_diff_6'] = df['pm25_1'] - df['pm25_6']
+df['rolling_3'] = df['pm25'].shift(1).rolling(3).mean()
+df['rolling_6'] = df['pm25'].shift(1).rolling(6).mean()
+df['rolling_6_std'] = df['pm25'].shift(1).rolling(6).std()
+df['rolling_12_std'] = df['pm25'].shift(1).rolling(12).std()
+df['temperature_relative_humidity'] = df['temperature'] * df['relativehumidity']
+df['temperature_change_1'] = df['temperature'].diff(1)
+df['pm25_1_ahead'] = df['pm25'].shift(-1)
+df = df.dropna()
+
+
+#These are all of the features that the classifiers and regressors can pick from.
+#They will all pick the top 9 that are the most important in order to avoid an inflated
+#r^2 value. Added rolling features because boosting benefits from that.
+features = [
+    'temperature',         
+    'relativehumidity',     
+    'hour_sin',             
+    'hour_cos',             
+    'dow_sin',              
+    'dow_cos',              
+    'pm25_1',               
+    'pm25_2',
+    'pm25_3',
+    'pm25_6',
+    'pm25_12',
+    'pm25_24',
+    'pm25_diff_1',
+    'pm25_diff_6',
+    'rolling_3',            
+    'rolling_6',
+    'rolling_6_std',
+    'rolling_12_std',
+    'temperature_relative_humidity',
+    'temperature_change_1'           
+]
+
+
+split_index = int(len(df) * 0.8)
+train = df.iloc[:split_index]
+test = df.iloc[split_index:]
+X_train = train[features]
+y_train = train['pm25_1_ahead']
+X_test = test[features]
+y_test = test['pm25_1_ahead']
+tscv = TimeSeriesSplit(n_splits=5)
+for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
+    X_tr, X_val = X_train.iloc[train_index], X_train.iloc[val_index]
+    y_tr, y_val = y_train.iloc[train_index], y_train.iloc[val_index]
+    model_rf = RandomForestRegressor(
+        n_estimators=500,
+        max_depth=20,
+        min_samples_leaf=5,
+        random_state=42,
+        n_jobs=-1
+    )
+    model_rf.fit(X_tr, y_tr)
+    preds = model_rf.predict(X_val)
+    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val, preds):.4f}")
+sfm_rf = SelectFromModel(model_rf, max_features=9, threshold=-np.inf)
+sfm_rf.fit(X_train, y_train)
+top_features_rf = X_train.columns[sfm_rf.get_support()]
+final_rf = RandomForestRegressor(
+    n_estimators=500,
+    max_depth=20,
+    min_samples_leaf=5,
+    random_state=42,
+    n_jobs=-1
+)
+final_rf.fit(X_train[top_features_rf], y_train)
+y_pred = final_rf.predict(X_test[top_features_rf])
+n = len(y_test)
+p = len(top_features_rf)
+r2 = r2_score(y_test, y_pred)
+adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+print("Random Forest Regression Metrics")
+print("MAE:", mean_absolute_error(y_test, y_pred))
+print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
+print("R2:", r2)
+print("Adj_r2", adj_r2)
+feat_importances_rf = pd.Series(final_rf.feature_importances_, index=top_features_rf)
+sns.barplot(x=feat_importances_rf, y=feat_importances_rf.index)
+plt.title("Random Forest Regressor for Top 9 Features")
+plt.show()
+
+
+for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
+    X_tr, X_val = X_train.iloc[train_index], X_train.iloc[val_index]
+    y_tr, y_val = y_train.iloc[train_index], y_train.iloc[val_index]
+    model_xgb = XGBRegressor(
+        n_estimators=500,
+        max_depth=5,
+        learning_rate=0.05,
+        random_state=42
+    )
+    model_xgb.fit(X_tr, y_tr)
+    preds = model_xgb.predict(X_val)
+    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val, preds):.4f}")
+sfm_xgb = SelectFromModel(model_xgb, max_features=9, threshold=-np.inf)
+sfm_xgb.fit(X_train, y_train)
+top_features_xgb = X_train.columns[sfm_xgb.get_support()]
+final_xgb = XGBRegressor(
+    n_estimators=500,
+    max_depth=5,
+    learning_rate=0.05,
+    random_state=42
+)
+final_xgb.fit(X_train[top_features_xgb], y_train)
+y_pred = final_xgb.predict(X_test[top_features_xgb])
+r2 = r2_score(y_test, y_pred)
+adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+print("XGBoost Regression Metrics")
+print("MAE:", mean_absolute_error(y_test, y_pred))
+print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
+print("R2:", r2)
+print("Adj_r2:", adj_r2)
+feat_importances_xgb = pd.Series(final_xgb.feature_importances_, index=top_features_xgb)
+sns.barplot(x=feat_importances_xgb, y=feat_importances_xgb.index)
+plt.title("XGBoost Regressor for Top 9 Features")
+plt.show()
+
+y_train_cls = train['air_quality']
+y_test_cls = test['air_quality']
+
+rf_cls = RandomForestClassifier(
+    n_estimators=500,
+    random_state=42,
+    class_weight='balanced',
+    n_jobs=-1
+)
+
+#Changed final_rf_cls class_weight to each tree an equal view of every class
+#changed final_rf_cls min_samples_leaf to deal with overfitting to the class
+#that appears the most
+rf_cls.fit(X_train, y_train_cls)
+sfm_rf_cls = SelectFromModel(rf_cls, max_features=9, threshold=-np.inf)
+sfm_rf_cls.fit(X_train, y_train_cls)
+top_features_rf_cls = X_train.columns[sfm_rf_cls.get_support()]
+final_rf_cls = RandomForestClassifier(
+    n_estimators=500,
+    random_state=42,
+    class_weight='balanced_subsample',
+    min_samples_leaf=3,
+    n_jobs=-1
+)
+final_rf_cls.fit(X_train[top_features_rf_cls], y_train_cls)
+y_pred_cls = final_rf_cls.predict(X_test[top_features_rf_cls])
+print("Random Forest Classification Report")
+print(classification_report(y_test_cls, y_pred_cls))
+print(confusion_matrix(y_test_cls, y_pred_cls))
+feat_importances_rf_cls = pd.Series(final_rf_cls.feature_importances_, index=top_features_rf_cls)
+sns.barplot(x=feat_importances_rf_cls, y=feat_importances_rf_cls.index)
+plt.title("Random Forest Classifier for Top 9 Features")
+plt.show()
+
+from collections import Counter
+
+y_train_cls = train['air_quality']
+y_test_cls = test['air_quality']
+
+# Compute class weights based on their frequency in order to 
+# somewhat mitigate the issue of overpredicting the more popular classes
+class_counts = Counter(y_train_cls)
+total = sum(class_counts.values())
+num_classes = len(class_counts)
+class_weights = {cls: total/(num_classes*count) for cls, count in class_counts.items()}
+sample_weights = y_train_cls.map(class_weights)
+
+xgb_cls = XGBClassifier(
+    n_estimators=500,
+    learning_rate=0.1,
+    max_depth=7,
+    objective='multi:softprob',
+    use_label_encoder=False,
+    eval_metric='mlogloss'
+)
+xgb_cls.fit(X_train, y_train_cls, sample_weight=sample_weights)
+
+sfm_xgb_cls = SelectFromModel(xgb_cls, max_features=9, threshold=-np.inf)
+sfm_xgb_cls.fit(X_train, y_train_cls)
+top_features_xgb_cls = X_train.columns[sfm_xgb_cls.get_support()]
+
+final_xgb_cls = XGBClassifier(
+    n_estimators=500,
+    learning_rate=0.1,
+    max_depth=7,
+    objective='multi:softprob',
+    use_label_encoder=False,
+    eval_metric='mlogloss'
+)
+final_xgb_cls.fit(X_train[top_features_xgb_cls], y_train_cls, sample_weight=sample_weights)
+y_pred_cls = final_xgb_cls.predict(X_test[top_features_xgb_cls])
+print("XGBoost Classification Report")
+print(classification_report(y_test_cls, y_pred_cls))
+print(confusion_matrix(y_test_cls, y_pred_cls))
+feat_importances_xgb_cls = pd.Series(final_xgb_cls.feature_importances_, index=top_features_xgb_cls)
+sns.barplot(x=feat_importances_xgb_cls, y=feat_importances_xgb_cls.index)
+plt.title("XGBoost Classifier for Top 9 Features (Class-weighted)")
+plt.show()
