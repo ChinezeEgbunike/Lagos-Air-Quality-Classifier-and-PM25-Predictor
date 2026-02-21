@@ -1,17 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Feb 17 10:44:04 2026
-
-@author: Administrator
-"""
-
-
-
-# -*- coding: utf-8 -*-
-"""
-Air Quality Prediction Lagos - Regression + Classification with Feature Selection per Fold
-"""
-
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import TimeSeriesSplit
@@ -58,7 +44,7 @@ df['temperature_change_1'] = df['temperature'].diff(1)
 df['pm25_1_ahead'] = df['pm25'].shift(-1)
 df = df.dropna()
 
-# define air quality bins directly
+
 bins = [-np.inf, 12, 35.4, 55.4, np.inf]
 labels = [0, 1, 2, 3]
 df['air_quality'] = pd.cut(df['pm25_1_ahead'], bins=bins, labels=labels).astype(int)
@@ -96,10 +82,16 @@ X_train = train[features]
 y_train = train['pm25_1_ahead']
 X_test = test[features]
 y_test = test['pm25_1_ahead']
+
+y_train_log = np.log1p(y_train)
+y_test_log = np.log1p(y_test)
+
 tscv = TimeSeriesSplit(n_splits=5)
+#Train on past data only, validate on future data, then expand the training window
 for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
     X_tr, X_val = X_train.iloc[train_index], X_train.iloc[val_index]
-    y_tr, y_val = y_train.iloc[train_index], y_train.iloc[val_index]
+    y_tr = y_train_log.iloc[train_index]
+    y_val = y_train_log.iloc[val_index]
     model_rf = RandomForestRegressor(
         n_estimators=500,
         max_depth=20,
@@ -108,11 +100,16 @@ for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
         n_jobs=-1
     )
     model_rf.fit(X_tr, y_tr)
-    preds = model_rf.predict(X_val)
-    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val, preds):.4f}")
+    preds_log = model_rf.predict(X_val)
+    preds = np.expm1(preds_log)
+    y_val_original = np.expm1(y_val)
+    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val_original, preds):.4f}")
+    print(train.iloc[val_index]['pm25_1_ahead'].describe())
+
 sfm_rf = SelectFromModel(model_rf, max_features=9, threshold=-np.inf)
-sfm_rf.fit(X_train, y_train)
+sfm_rf.fit(X_train, y_train_log)
 top_features_rf = X_train.columns[sfm_rf.get_support()]
+
 final_rf = RandomForestRegressor(
     n_estimators=500,
     max_depth=20,
@@ -120,17 +117,22 @@ final_rf = RandomForestRegressor(
     random_state=42,
     n_jobs=-1
 )
-final_rf.fit(X_train[top_features_rf], y_train)
-y_pred = final_rf.predict(X_test[top_features_rf])
+final_rf.fit(X_train[top_features_rf], y_train_log)
+
+y_pred_log = final_rf.predict(X_test[top_features_rf])
+y_pred = np.expm1(y_pred_log)
+
 n = len(y_test)
 p = len(top_features_rf)
 r2 = r2_score(y_test, y_pred)
 adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+
 print("Random Forest Regression Metrics")
 print("MAE:", mean_absolute_error(y_test, y_pred))
 print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
 print("R2:", r2)
 print("Adj_r2", adj_r2)
+
 feat_importances_rf = pd.Series(final_rf.feature_importances_, index=top_features_rf)
 sns.barplot(x=feat_importances_rf, y=feat_importances_rf.index)
 plt.title("Random Forest Regressor for Top 9 Features")
@@ -139,7 +141,8 @@ plt.show()
 
 for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
     X_tr, X_val = X_train.iloc[train_index], X_train.iloc[val_index]
-    y_tr, y_val = y_train.iloc[train_index], y_train.iloc[val_index]
+    y_tr = y_train_log.iloc[train_index]
+    y_val = y_train_log.iloc[val_index]
     model_xgb = XGBRegressor(
         n_estimators=500,
         max_depth=5,
@@ -147,26 +150,39 @@ for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
         random_state=42
     )
     model_xgb.fit(X_tr, y_tr)
-    preds = model_xgb.predict(X_val)
-    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val, preds):.4f}")
+    preds_log = model_xgb.predict(X_val)
+    preds = np.expm1(preds_log)
+    y_val_original = np.expm1(y_val)
+    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val_original, preds):.4f}")
+    print(train.iloc[val_index]['pm25_1_ahead'].describe())
+
 sfm_xgb = SelectFromModel(model_xgb, max_features=9, threshold=-np.inf)
-sfm_xgb.fit(X_train, y_train)
+sfm_xgb.fit(X_train, y_train_log)
 top_features_xgb = X_train.columns[sfm_xgb.get_support()]
+
 final_xgb = XGBRegressor(
     n_estimators=500,
     max_depth=5,
     learning_rate=0.05,
     random_state=42
 )
-final_xgb.fit(X_train[top_features_xgb], y_train)
-y_pred = final_xgb.predict(X_test[top_features_xgb])
+final_xgb.fit(X_train[top_features_xgb], y_train_log)
+
+
+#log transform predictor in order to have more predictions in the typical range and
+#reduce MSE in each fold.
+y_pred_log = final_xgb.predict(X_test[top_features_xgb])
+y_pred = np.expm1(y_pred_log)
+
 r2 = r2_score(y_test, y_pred)
 adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+
 print("XGBoost Regression Metrics")
 print("MAE:", mean_absolute_error(y_test, y_pred))
 print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
 print("R2:", r2)
 print("Adj_r2:", adj_r2)
+
 feat_importances_xgb = pd.Series(final_xgb.feature_importances_, index=top_features_xgb)
 sns.barplot(x=feat_importances_xgb, y=feat_importances_xgb.index)
 plt.title("XGBoost Regressor for Top 9 Features")
@@ -241,5 +257,3 @@ feat_importances_xgb_cls = pd.Series(final_xgb_cls.feature_importances_, index=t
 sns.barplot(x=feat_importances_xgb_cls, y=feat_importances_xgb_cls.index)
 plt.title("XGBoost Classifier for Top 9 Features Class-weighted")
 plt.show()
-
-
