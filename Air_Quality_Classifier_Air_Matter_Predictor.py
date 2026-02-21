@@ -87,7 +87,7 @@ y_train_log = np.log1p(y_train)
 y_test_log = np.log1p(y_test)
 
 tscv = TimeSeriesSplit(n_splits=5)
-#Train on past data only, validate on future data, then expand the training window
+#Train on past data only, validate on future data, then expand the training window, good for forecasting
 for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
     X_tr, X_val = X_train.iloc[train_index], X_train.iloc[val_index]
     y_tr = y_train_log.iloc[train_index]
@@ -257,3 +257,4 @@ feat_importances_xgb_cls = pd.Series(final_xgb_cls.feature_importances_, index=t
 sns.barplot(x=feat_importances_xgb_cls, y=feat_importances_xgb_cls.index)
 plt.title("XGBoost Classifier for Top 9 Features Class-weighted")
 plt.show()
+
