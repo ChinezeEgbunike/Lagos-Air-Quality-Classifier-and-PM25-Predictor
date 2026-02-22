@@ -104,7 +104,6 @@ for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
     preds = np.expm1(preds_log)
     y_val_original = np.expm1(y_val)
     print(f"Fold {fold+1} MSE: {mean_squared_error(y_val_original, preds):.4f}")
-    print(train.iloc[val_index]['pm25_1_ahead'].describe())
 
 sfm_rf = SelectFromModel(model_rf, max_features=9, threshold=-np.inf)
 sfm_rf.fit(X_train, y_train_log)
@@ -154,7 +153,6 @@ for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
     preds = np.expm1(preds_log)
     y_val_original = np.expm1(y_val)
     print(f"Fold {fold+1} MSE: {mean_squared_error(y_val_original, preds):.4f}")
-    print(train.iloc[val_index]['pm25_1_ahead'].describe())
 
 sfm_xgb = SelectFromModel(model_xgb, max_features=9, threshold=-np.inf)
 sfm_xgb.fit(X_train, y_train_log)
@@ -192,6 +190,43 @@ plt.show()
 y_train_cls = train['air_quality']
 y_test_cls = test['air_quality']
 
+rf_cls = RandomForestClassifier(
+    n_estimators=500,
+    random_state=42,
+    min_samples_leaf=3,
+    class_weight='balanced_subsample',
+    n_jobs=-1
+)
+
+rf_cls.fit(X_train, y_train_cls)
+
+sfm_rf_cls = SelectFromModel(rf_cls, max_features=9, threshold=-np.inf)
+sfm_rf_cls.fit(X_train, y_train_cls)
+
+top_features_rf_cls = X_train.columns[sfm_rf_cls.get_support()]
+
+final_rf_cls = RandomForestClassifier(
+    n_estimators=500,
+    random_state=42,
+    min_samples_leaf=3,
+    class_weight='balanced_subsample',
+    n_jobs=-1
+)
+
+final_rf_cls.fit(X_train[top_features_rf_cls], y_train_cls)
+
+y_pred_cls = final_rf_cls.predict(X_test[top_features_rf_cls])
+
+print("Random Forest Classification Report")
+print(classification_report(y_test_cls, y_pred_cls))
+print(confusion_matrix(y_test_cls, y_pred_cls))
+
+feat_importances_rf_cls = pd.Series(final_rf_cls.feature_importances_, index=top_features_rf_cls)
+sns.barplot(x=feat_importances_rf_cls, y=feat_importances_rf_cls.index)
+plt.title("Random Forest Classifier for Top 9 Features Class-Weighted")
+plt.show()
+
+
 # Compute class weights based on their frequency in order to 
 # somewhat mitigate the issue of overpredicting the more popular classes
 class_counts = Counter(y_train_cls)
@@ -199,34 +234,6 @@ total = sum(class_counts.values())
 num_classes = len(class_counts)
 class_weights = {cls: total/(num_classes*count) for cls, count in class_counts.items()}
 sample_weights = y_train_cls.map(class_weights)
-
-rf_cls = RandomForestClassifier(
-    n_estimators=500,
-    random_state=42,  
-    min_samples_leaf=3,
-    n_jobs=-1
-)
-rf_cls.fit(X_train, y_train_cls, sample_weight=sample_weights)
-sfm_rf_cls = SelectFromModel(rf_cls, max_features=9, threshold=-np.inf)
-sfm_rf_cls.fit(X_train, y_train_cls)
-top_features_rf_cls = X_train.columns[sfm_rf_cls.get_support()]
-final_rf_cls = RandomForestClassifier(
-    n_estimators=500,
-    random_state=42,  
-    min_samples_leaf=3,
-    n_jobs=-1
-)
-final_rf_cls.fit(X_train[top_features_rf_cls], y_train_cls, sample_weight=sample_weights)
-y_pred_cls = final_rf_cls.predict(X_test[top_features_rf_cls])
-
-print("Random Forest Classification Report")
-print(classification_report(y_test_cls, y_pred_cls))
-print(confusion_matrix(y_test_cls, y_pred_cls))
-feat_importances_rf_cls = pd.Series(final_rf_cls.feature_importances_, index=top_features_rf_cls)
-sns.barplot(x=feat_importances_rf_cls, y=feat_importances_rf_cls.index)
-plt.title("Random Forest Classifier for Top 9 Features Class-Weighted")
-plt.show()
-
 
 xgb_cls = XGBClassifier(
     n_estimators=500,
@@ -257,4 +264,3 @@ feat_importances_xgb_cls = pd.Series(final_xgb_cls.feature_importances_, index=t
 sns.barplot(x=feat_importances_xgb_cls, y=feat_importances_xgb_cls.index)
 plt.title("XGBoost Classifier for Top 9 Features Class-weighted")
 plt.show()
-
