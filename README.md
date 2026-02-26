@@ -24,14 +24,7 @@ Random Forest Classification Report
            3       1.00      0.06      0.11        17
 
     accuracy                           0.50       125
-   macro avg       0.53      0.33      0.33       125
-weighted avg       0.54      0.50      0.45       125
 
-Confusion Matrix for Random Forest Classifier:
-[[11 13  2  0]
- [13 48  4  0]
- [ 3 12  2  0]
- [ 0 11  5  1]]
 
 XGBoost Classification Report
               precision    recall  f1-score   support
@@ -42,15 +35,7 @@ XGBoost Classification Report
            3       0.54      0.41      0.47        17
 
     accuracy                           0.51       125
-   macro avg       0.45      0.42      0.42       125
-weighted avg       0.51      0.51      0.51       125
 
-Confusion Matrix for XGBoost Classifier:
-
-[[ 6 13  5  2]
- [10 45  9  1]
- [ 0  8  6  3]
- [ 0  5  5  7]]
 
 
 The Lagos.csv is the data that I used for this project.
