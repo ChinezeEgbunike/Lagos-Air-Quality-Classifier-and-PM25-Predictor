@@ -8,11 +8,15 @@ For the XGboost regressor, I adjusted the learning rate to be 0.05 instead of 0.
 For the classifiers, I wanted to ensure that there wasn't an overpredicting of classes that were more popular. Because of this I assigned weights to each of the 4 air quality categories based on their frequency in the data. This improved the precision for less popular classes, particularly the last class labeled number 3. However, the recall was significantly lower for class 3 in the random forest classifier which is likely a result of class 3 being the class for rare and extreme cases of pollution spikes. Since the random forest classifier prioritizes minimizing impurity, it only predicts class 3 (Unhealthy, Very UNhealthy, Hazardous) when it is absolutely sure that an entry in the data falls in that class.
 
 Results for Random Forest Regressor:
+
 RMSE: 20.346
+
 Adjusted r^2 value: 0.146
 
 Results for XGBoost Regressor:
+
 RMSE: 21.243
+
 Adjusted r^2 value: 0.069
 
 Random Forest Classification Report
