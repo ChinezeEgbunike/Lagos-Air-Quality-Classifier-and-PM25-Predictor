@@ -16,6 +16,7 @@ RMSE: 21.243
 Adjusted r^2 value: 0.069
 
 Random Forest Classification Report
+
               precision    recall  f1-score   support
 
            0       0.41      0.42      0.42        26
@@ -27,6 +28,7 @@ Random Forest Classification Report
 
 
 XGBoost Classification Report
+
               precision    recall  f1-score   support
 
            0       0.38      0.23      0.29        26
