@@ -7,6 +7,52 @@ For the XGboost regressor, I adjusted the learning rate to be 0.05 instead of 0.
 
 For the classifiers, I wanted to ensure that there wasn't an overpredicting of classes that were more popular. Because of this I assigned weights to each of the 4 air quality categories based on their frequency in the data. This improved the precision for less popular classes, particularly the last class labeled number 3. However, the recall was significantly lower for class 3 in the random forest classifier which is likely a result of class 3 being the class for rare and extreme cases of pollution spikes. Since the random forest classifier prioritizes minimizing impurity, it only predicts class 3 (Unhealthy, Very UNhealthy, Hazardous) when it is absolutely sure that an entry in the data falls in that class.
 
+Results for Random Forest Regressor:
+RMSE: 20.346
+Adjusted r^2 value: 0.146
+
+Results for XGBoost Regressor:
+RMSE: 21.243
+Adjusted r^2 value: 0.069
+
+Random Forest Classification Report
+              precision    recall  f1-score   support
+
+           0       0.41      0.42      0.42        26
+           1       0.57      0.74      0.64        65
+           2       0.15      0.12      0.13        17
+           3       1.00      0.06      0.11        17
+
+    accuracy                           0.50       125
+   macro avg       0.53      0.33      0.33       125
+weighted avg       0.54      0.50      0.45       125
+
+Confusion Matrix for Random Forest Classifier:
+[[11 13  2  0]
+ [13 48  4  0]
+ [ 3 12  2  0]
+ [ 0 11  5  1]]
+
+XGBoost Classification Report
+              precision    recall  f1-score   support
+
+           0       0.38      0.23      0.29        26
+           1       0.63      0.69      0.66        65
+           2       0.24      0.35      0.29        17
+           3       0.54      0.41      0.47        17
+
+    accuracy                           0.51       125
+   macro avg       0.45      0.42      0.42       125
+weighted avg       0.51      0.51      0.51       125
+
+Confusion Matrix for XGBoost Classifier:
+
+[[ 6 13  5  2]
+ [10 45  9  1]
+ [ 0  8  6  3]
+ [ 0  5  5  7]]
+
+
 The Lagos.csv is the data that I used for this project.
 
 overiew of the project
