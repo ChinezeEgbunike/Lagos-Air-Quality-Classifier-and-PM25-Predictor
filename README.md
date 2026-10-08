@@ -9,39 +9,44 @@ For the classifiers, I wanted to ensure that there wasn't an overpredicting of c
 
 Results for Random Forest Regressor:
 
-RMSE: 20.346
+MAE: 12.70
 
-Adjusted r^2 value: 0.146
+RMSE: 19.55
+
+Adjusted r^2 value: 0.212
 
 Results for XGBoost Regressor:
 
-RMSE: 21.243
+MAE: 14.177
 
-Adjusted r^2 value: 0.069
+RMSE: 20.89
+
+Adjusted r^2 value: 0.0996
 
 Random Forest Classification Report
-
               precision    recall  f1-score   support
 
-           0       0.41      0.42      0.42        26
-           1       0.57      0.74      0.64        65
-           2       0.15      0.12      0.13        17
-           3       1.00      0.06      0.11        17
+           0       0.38      0.42      0.40        26
+           1       0.56      0.66      0.61        65
+           2       0.24      0.24      0.24        17
+           3       0.50      0.06      0.11        17
 
-    accuracy                           0.50       125
+    accuracy                           0.47       125
+   macro avg       0.42      0.34      0.34       125
+weighted avg       0.47      0.47      0.44       125
 
 
 XGBoost Classification Report
-
               precision    recall  f1-score   support
 
-           0       0.38      0.23      0.29        26
-           1       0.63      0.69      0.66        65
-           2       0.24      0.35      0.29        17
-           3       0.54      0.41      0.47        17
+           0       0.38      0.31      0.34        26
+           1       0.54      0.68      0.60        65
+           2       0.06      0.06      0.06        17
+           3       0.71      0.29      0.42        17
 
-    accuracy                           0.51       125
-
+    accuracy                           0.46       125
+   macro avg       0.43      0.33      0.36       125
+weighted avg       0.47      0.46      0.45       125
 
 
 The Lagos.csv is the data that I used for this project.
