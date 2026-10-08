@@ -35,10 +35,10 @@ df['pm25_12'] = df['pm25'].shift(12)
 df['pm25_24'] = df['pm25'].shift(24)
 df['pm25_diff_1'] = df['pm25_1'] - df['pm25_2']
 df['pm25_diff_6'] = df['pm25_1'] - df['pm25_6']
-df['rolling_3'] = df['pm25'].shift(1).rolling(3).mean()
-df['rolling_6'] = df['pm25'].shift(1).rolling(6).mean()
-df['rolling_6_std'] = df['pm25'].shift(1).rolling(6).std()
-df['rolling_12_std'] = df['pm25'].shift(1).rolling(12).std()
+df['rolling_3'] = df['pm25'].rolling(3).mean()
+df['rolling_6'] = df['pm25'].rolling(6).mean()
+df['rolling_6_std'] = df['pm25'].rolling(6).std()
+df['rolling_12_std'] = df['pm25'].rolling(12).std()
 df['temperature_relative_humidity'] = df['temperature'] * df['relativehumidity']
 df['temperature_change_1'] = df['temperature'].diff(1)
 df['pm25_1_ahead'] = df['pm25'].shift(-1)
@@ -84,6 +84,7 @@ X_test = test[features]
 y_test = test['pm25_1_ahead']
 
 y_train_log = np.log1p(y_train)
+y_test_log = np.log1p(y_test)
 
 tscv = TimeSeriesSplit(n_splits=5)
 #Train on past data only, validate on future data, then expand the training window, good for forecasting
