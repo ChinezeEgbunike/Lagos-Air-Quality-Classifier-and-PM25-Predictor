@@ -84,7 +84,6 @@ X_test = test[features]
 y_test = test['pm25_1_ahead']
 
 y_train_log = np.log1p(y_train)
-y_test_log = np.log1p(y_test)
 
 tscv = TimeSeriesSplit(n_splits=5)
 #Train on past data only, validate on future data, then expand the training window, good for forecasting
