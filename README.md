@@ -26,27 +26,27 @@ Adjusted r^2 value: 0.0996
 Random Forest Classification Report
               precision    recall  f1-score   support
 
-           0       0.38      0.42      0.40        26
-           1       0.56      0.66      0.61        65
-           2       0.24      0.24      0.24        17
-           3       0.50      0.06      0.11        17
+           0       0.16      0.21      0.18        19
+           1       0.55      0.64      0.59        72
+           2       0.25      0.18      0.21        17
+           3       0.80      0.24      0.36        17
 
-    accuracy                           0.47       125
-   macro avg       0.42      0.34      0.34       125
-weighted avg       0.47      0.47      0.44       125
+    accuracy                           0.46       125
+   macro avg       0.44      0.32      0.34       125
+weighted avg       0.49      0.46      0.45       125
 
 
 XGBoost Classification Report
               precision    recall  f1-score   support
 
-           0       0.38      0.31      0.34        26
-           1       0.54      0.68      0.60        65
-           2       0.06      0.06      0.06        17
-           3       0.71      0.29      0.42        17
+           0       0.31      0.42      0.36        19
+           1       0.59      0.62      0.61        72
+           2       0.07      0.06      0.06        17
+           3       0.75      0.35      0.48        17
 
-    accuracy                           0.46       125
-   macro avg       0.43      0.33      0.36       125
-weighted avg       0.47      0.46      0.45       125
+    accuracy                           0.48       125
+   macro avg       0.43      0.36      0.38       125
+weighted avg       0.50      0.48      0.48       125
 
 
 The Lagos.csv is the data that I used for this project.
