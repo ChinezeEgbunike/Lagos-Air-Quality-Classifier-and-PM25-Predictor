@@ -45,7 +45,7 @@ df['pm25_1_ahead'] = df['pm25'].shift(-1)
 df = df.dropna()
 
 
-bins = [-np.inf, 12, 35.4, 55.4, np.inf]
+bins = [-np.inf, 9.0, 35.4, 55.4, np.inf]
 labels = [0, 1, 2, 3]
 df['air_quality'] = pd.cut(df['pm25_1_ahead'], bins=bins, labels=labels).astype(int)
 
@@ -84,7 +84,7 @@ X_test = test[features]
 y_test = test['pm25_1_ahead']
 
 y_train_log = np.log1p(y_train)
-y_test_log = np.log1p(y_test)
+
 
 tscv = TimeSeriesSplit(n_splits=5)
 #Train on past data only, validate on future data, then expand the training window, good for forecasting
@@ -103,7 +103,6 @@ for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
     preds_log = model_rf.predict(X_val)
     preds = np.expm1(preds_log)
     y_val_original = np.expm1(y_val)
-    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val_original, preds):.4f}")
 
 sfm_rf = SelectFromModel(model_rf, max_features=9, threshold=-np.inf)
 sfm_rf.fit(X_train, y_train_log)
@@ -152,7 +151,6 @@ for fold, (train_index, val_index) in enumerate(tscv.split(X_train)):
     preds_log = model_xgb.predict(X_val)
     preds = np.expm1(preds_log)
     y_val_original = np.expm1(y_val)
-    print(f"Fold {fold+1} MSE: {mean_squared_error(y_val_original, preds):.4f}")
 
 sfm_xgb = SelectFromModel(model_xgb, max_features=9, threshold=-np.inf)
 sfm_xgb.fit(X_train, y_train_log)
